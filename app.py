@@ -1,0 +1,258 @@
+from datetime import datetime
+import streamlit as st
+
+# Configurazione della pagina dell'app
+st.set_page_config(
+    page_title="Gestione Muffulette e Scorte", page_icon="🥖", layout="centered"
+)
+
+# --- CSS PERSONALIZZATO: COLORI PASTELLO E BOX SQUADRATI ---
+st.markdown(
+    """
+    <style>
+        /* Sfondo generale della pagina */
+        .stApp {
+            background-color: #f9fbfd;
+            color: #2c3e50;
+        }
+        
+        /* Box informativi squadrati con tonalità pastello */
+        .stAlert {
+            border-radius: 0px !important;
+            border-left: 6px solid #a8dadc !important;
+            background-color: #f1faee !important;
+            color: #1d3557 !important;
+        }
+        
+        /* Pulsanti squadrati in stile pastello chiaro */
+        .stButton > button {
+            border-radius: 0px !important;
+            background-color: #e2eafc !important;
+            color: #2c3e50 !important;
+            border: 1px solid #b6c9f0 !important;
+            font-weight: 500;
+        }
+        .stButton > button:hover {
+            background-color: #d0dffb !important;
+            border-color: #9ab4ee !important;
+        }
+        
+        /* Pulsante di download report */
+        div.stDownloadButton > button {
+            background-color: #d8f3dc !important;
+            border: 1px solid #b7e4c7 !important;
+            color: #1b4332 !important;
+        }
+        div.stDownloadButton > button:hover {
+            background-color: #b7e4c7 !important;
+        }
+        
+        /* Campi di input e form squadrati */
+        input {
+            border-radius: 0px !important;
+        }
+        div[data-testid="stForm"] {
+            border-radius: 0px !important;
+            border: 1px solid #e2e8f0 !important;
+            background-color: #ffffff;
+            padding: 20px;
+        }
+        
+        /* Intestazioni delle sezioni */
+        h1, h2, h3 {
+            color: #1e293b;
+        }
+    </style>
+""",
+    unsafe_allow_html=True,
+)
+
+st.title("🥖 Panificio: Gestione Muffulette e Scorte")
+st.write(
+    "Controllo scorte, rubrica alfabetica, ordini in attesa e totale consegnato."
+)
+
+# Inizializzazione dello stato
+if "prenotazioni" not in st.session_state:
+    st.session_state.prenotazioni = []
+if "iniziale_v1" not in st.session_state:
+    st.session_state.iniziale_v1 = 50
+if "iniziale_v2" not in st.session_state:
+    st.session_state.iniziale_v2 = 50
+if "banco_v1" not in st.session_state:
+    st.session_state.banco_v1 = 0
+if "banco_v2" not in st.session_state:
+    st.session_state.banco_v2 = 0
+
+st.write("---")
+
+# --- CALCOLI DI MAGAZZINO E CONSEGNE ---
+tot_pren_v1 = sum(p["v1"] for p in st.session_state.prenotazioni)
+tot_pren_v2 = sum(p["v2"] for p in st.session_state.prenotazioni)
+
+rimasti_v1 = st.session_state.iniziale_v1 - tot_pren_v1
+rimasti_v2 = st.session_state.iniziale_v2 - tot_pren_v2
+
+# Totale consegnato (somma dei pezzi dei soli ordini con spunta "evaso")
+consegnati_v1 = sum(
+    p["v1"] for p in st.session_state.prenotazioni if p["evaso"]
+)
+consegnati_v2 = sum(
+    p["v2"] for p in st.session_state.prenotazioni if p["evaso"]
+)
+
+# Liste di divisione ordini
+ordini_in_attesa = [p for p in st.session_state.prenotazioni if not p["evaso"]]
+ordini_evasi = [p for p in st.session_state.prenotazioni if p["evaso"]]
+
+
+# --- SEZIONE 1: GESTIONE AFFIANCATA PER VARIANTE ---
+st.subheader("📦 Gestione Scorte, Banco e Consegnati")
+
+col_v1, col_v2 = st.columns(2)
+
+# --- COLONNA 1: CON FINOCCHIO ---
+with col_v1:
+    st.markdown("### 🌿 Con finocchio")
+    st.session_state.iniziale_v1 = st.number_input(
+        "Disponibilità iniziale",
+        min_value=0,
+        step=1,
+        value=st.session_state.iniziale_v1,
+        key="num_ini_v1",
+    )
+    st.session_state.banco_v1 = st.number_input(
+        "Venduti al banco (senza prenotazione)",
+        min_value=0,
+        step=1,
+        value=st.session_state.banco_v1,
+        key="num_banco_v1",
+    )
+
+    st.info(
+        f"• In attesa di ritiro: **{sum(p['v1'] for p in ordini_in_attesa)} pz**\n\n"
+        f"• Rimasti in magazzino: **{rimasti_v1} pz**\n\n"
+        f"• 📦 **Totale consegnati:** {consegnati_v1} pz"
+    )
+
+# --- COLONNA 2: SENZA FINOCCHIO ---
+with col_v2:
+    st.markdown("### 🌾 Senza finocchio")
+    st.session_state.iniziale_v2 = st.number_input(
+        "Disponibilità iniziale",
+        min_value=0,
+        step=1,
+        value=st.session_state.iniziale_v2,
+        key="num_ini_v2",
+    )
+    st.session_state.banco_v2 = st.number_input(
+        "Venduti al banco (senza prenotazione)",
+        min_value=0,
+        step=1,
+        value=st.session_state.banco_v2,
+        key="num_banco_v2",
+    )
+
+    st.info(
+        f"• In attesa di ritiro: **{sum(p['v2'] for p in ordini_in_attesa)} pz**\n\n"
+        f"• Rimasti in magazzino: **{rimasti_v2} pz**\n\n"
+        f"• 📦 **Totale consegnati:** {consegnati_v2} pz"
+    )
+
+st.write("---")
+
+# --- SEZIONE 2: AGGIUNGI PRENOTAZIONE ---
+st.subheader("📋 Aggiungi Nuova Prenotazione")
+
+with st.form("form_prenotazione", clear_on_submit=True):
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        nome_cliente = st.text_input("Nome del cliente")
+    with col_c2:
+        telefono = st.text_input("Numero di telefono")
+
+    col_q1, col_q2 = st.columns(2)
+    with col_q1:
+        qta_v1 = st.number_input(
+            "Con finocchio (pezzi)", min_value=0, step=1, value=0
+        )
+    with col_q2:
+        qta_v2 = st.number_input(
+            "Senza finocchio (pezzi)", min_value=0, step=1, value=0
+        )
+
+    extra = st.text_input("Altri prodotti extra (es. 2 focacce, opzionale)")
+
+    submitted = st.form_submit_button("Salva Prenotazione")
+    if submitted:
+        if nome_cliente.strip() == "":
+            st.warning("Inserisci almeno il nome del cliente.")
+        elif qta_v1 > rimasti_v1 or qta_v2 > rimasti_v2:
+            st.error(
+                "❌ Attenzione: Stai tentando di prenotare più pezzi di quelli"
+                " rimasti in magazzino!"
+            )
+        else:
+            st.session_state.prenotazioni.append({
+                "cliente": nome_cliente.strip(),
+                "telefono": telefono if telefono else "Non specificato",
+                "v1": int(qta_v1),
+                "v2": int(qta_v2),
+                "extra": extra if extra else "",
+                "evaso": False,
+            })
+            st.success(f"Prenotazione salvata per {nome_cliente}!")
+            st.rerun()
+
+# --- SEZIONE 3: RUBRICA ORDINI DA CONSEGNARE (ALFABETICA) ---
+if st.session_state.prenotazioni:
+    st.write("---")
+    st.subheader(
+        f"📝 Ordini in Attesa di Ritiro ({len(ordini_in_attesa)} da evadere)"
+    )
+
+    if not ordini_in_attesa:
+        st.success(
+            "🎉 Ottimo! Tutti gli ordini registrati sono stati ritirati ed"
+            " evasi."
+        )
+    else:
+        attesa_ordinati = sorted(
+            ordini_in_attesa, key=lambda x: x["cliente"].lower()
+        )
+        lettera_corrente = ""
+
+        for p in attesa_ordinati:
+            prima_lettera = p["cliente"][0].upper()
+
+            if prima_lettera != lettera_corrente:
+                lettera_corrente = prima_lettera
+                st.markdown(f"### 🔠 — {lettera_corrente}")
+
+            chiave_checkbox = f"attesa_{p['cliente']}"
+            extra_txt = f" | Extra: {p['extra']}" if p["extra"] else ""
+            testo_etichetta = (
+                f"**{p['cliente']}** (Tel: {p['telefono']}) ➔ Con finocchio:"
+                f" {p['v1']} | Senza finocchio: {p['v2']}{extra_txt}"
+            )
+
+            spuntato = st.checkbox(
+                testo_etichetta, value=False, key=chiave_checkbox
+            )
+            if spuntato:
+                p["evaso"] = True
+                st.rerun()
+
+    if ordini_evasi:
+        with st.expander(
+            f"✅ Visualizza ordini già ritirati / evasi ({len(ordini_evasi)})"
+        ):
+            for p in ordini_evasi:
+                extra_txt = f" | Extra: {p['extra']}" if p["extra"] else ""
+                col_ed1, col_ed2 = st.columns([4, 1])
+                with col_ed1:
+                    st.text(
+                        f"✓ {p['cliente']} — Con: {p['v1']} | Senza: {p['v2']}{extra_txt}"
+                    )
+                with col_ed2:
+                    if st.button("Annulla", key=f"Annulla_{p['cliente']}"):
